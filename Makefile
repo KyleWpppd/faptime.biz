@@ -4,10 +4,11 @@
 
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis
+CFLAGS=-Wall -g -lhiredis  -lfcgi
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 
-all:
-	$(CC) -o faptime -I/usr/local/include/hiredis -lhiredis src/server.c
+all: server
 
 clean:
-	rm faptime
+	rm server
+
