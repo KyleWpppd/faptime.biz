@@ -11,5 +11,5 @@ extern int main(void);
 extern int method_not_allowed(const char *allow);
 extern int not_found();
 extern int is_valid_hash(const char *hash);
-extern int faptime_encode(char *dest, const int url_id);
+extern char * faptime_encode(char *dest, long long num);
 #endif
