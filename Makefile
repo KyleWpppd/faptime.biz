@@ -10,5 +10,5 @@ CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 all: server
 
 clean:
-	rm server
+	rm -r server server.dSYM
 
