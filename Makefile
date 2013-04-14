@@ -4,7 +4,7 @@
 
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis
-CFLAGS=-Wall -g -lhiredis  -lfcgi
+CFLAGS=-Wall -g -lhiredis  -lfcgi -lcurl
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 
 all: server
