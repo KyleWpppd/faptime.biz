@@ -37,22 +37,12 @@ const char table[62] = {
 /* 40 */    '2',    'v',    'r',    '6',    'O',    'i',    'd',    '5',    'E',    'D',
 /* 50 */    'z',    'J',    's',    'y',    'q',    't',    'U',    '8',    'h',    'C',
 /* 60 */    'M',    'j'
-
-    /* '\x57',  '\x6E', '\x6C', '\x56', '\x39', '\x6B', '\x75', '\x42', '\x46', '\x34', */
-    /* '\x61',  '\x58', '\x78', '\x59', '\x63', '\x52', '\x6F', '\x66', '\x41', '\x51', */
-    /* '\x53',  '\x33', '\x49', '\x6D', '\x54', '\x70', '\x48', '\x37', '\x50', '\x62', */
-    /* '\x30',  '\x4E', '\x47', '\x77', '\x4C', '\x5A', '\x65', '\x67', '\x4B', '\x31', */
-    /* '\x32',  '\x76', '\x72', '\x36', '\x4F', '\x69', '\x64', '\x35', '\x45', '\x44', */
-    /* '\x7A',  '\x4A', '\x73', '\x79', '\x71', '\x74', '\x55', '\x38', '\x68', '\x43', */
-    /* '\x4D',  '\x6A' */
 };
 
 int main(void) {
     redisContext *context;
     redisReply *reply;
 
-    /* char *http_host; */
-    char request_hash[MAX_HASH_LENGTH+1];
 
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
     context = redisConnectWithTimeout(REDIS_SERVER, REDIS_PORT, timeout);
@@ -66,20 +56,22 @@ int main(void) {
         exit(1);
     }
 
-    const char *get = "GET";
-    const int maxlen = sizeof(request_hash);
-    char hashout[MAX_HASH_LENGTH+1];
+    char hashout[MAX_HASH_LENGTH+1] = {'\0'};
+    char request_hash[MAX_HASH_LENGTH+1] = {'\0'};
+
     int urilen;
-    while (FCGI_Accept() >= 0) {
+    int z = 1;
+    while (FCGI_Accept() >= 0 || z-- >= 0) {
         /* Only accept GET requests */
-        if (strcasecmp(getenv("REQUEST_METHOD"), get) != 0) {
-            method_not_allowed(get);
+        if (strcasecmp(getenv("REQUEST_METHOD"), "GET") != 0) {
+            method_not_allowed("GET");
             break;
         }
 
         // Make sure the hash is not too long
-        urilen = strnlen(getenv("REQUEST_URI"), maxlen);
-        if (!urilen || urilen > maxlen) {
+        // No reason to read beyond the max length
+        urilen = strnlen(getenv("REQUEST_URI"), MAX_HASH_LENGTH+1);
+        if (!urilen || urilen > MAX_HASH_LENGTH) {
             not_found();
             printf("URI was invalid: '%s'\n", getenv("REQUEST_URI"));
             break;
@@ -102,6 +94,7 @@ int main(void) {
         printf("Hash: %s\n", faptime_encode(hashout, atoll(getenv("ENCODE"))));
 
         printf("PING: %s\n", reply->str);
+
         freeReplyObject(reply);
     }
     redisFree(context);
@@ -110,44 +103,36 @@ int main(void) {
 }
 
 int not_found() {
-    return printf(
-        "HTTP/1.1 404 Not Found\r\n"
-        "Server: faptime.biz\r\n"
-        "Content-Length: 0\r\n"
-        "\r\n"
-    );
+    return status_header(404);
 }
 
+
 int method_not_allowed(const char *allow) {
-    return printf(
-        "HTTP/1.1 405 Method Not Allowed\r\n"
+    int len = status_header(405);
+    return len + printf(
         "Allow: %s\r\n"
-        "Content-Length: 0\r\n"
-        "\r\n", allow
     );
 }
 
 
 int is_valid_hash(const char *hash) {
-    int i = 0;
     int len = strnlen(hash, MAX_HASH_LENGTH+1);
     // 0-length string
     if (len == 0) return HASH_EMPTY;
     if (len > MAX_HASH_LENGTH) return HASH_BAD_FORMAT;
-    if (hash[i] != '/') return HASH_NOT_PATH;
+    if (hash[0] != '/') return HASH_NOT_PATH;
     // Else check each char
-    i++;
-    while (hash[i] != '\0' && i <= MAX_HASH_LENGTH) {
-        printf("Alnum ?  '%c' \n", hash[i]);
+    int i = 0;
+    while (hash[++i] != '\0' && i <= MAX_HASH_LENGTH) {
+        printf("Alnum @ %d?  '%c' \n", i, hash[i]);
         if (! isalnum(hash[i])) return HASH_BAD_CHAR;
-        i++;
     }
     printf("Hash OK!\n");
     return HASH_OK;
 }
 
 
-char * faptime_encode(char * dest, long long num) {
+char * faptime_encode(char *dest, long long num) {
     strcpy(dest, "");
     char * tmp = dest;
     int remainder;
@@ -161,4 +146,77 @@ char * faptime_encode(char * dest, long long num) {
     }
     *dest = '\0';
     return tmp;
+}
+
+long long faptime_decode(char *hash) {
+    if (strnlen(hash, MAX_HASH_LENGTH+1) > MAX_HASH_LENGTH || ! strlen(hash)) {
+        return -1;
+    }
+
+    long long num = 0;
+    int len = strlen(hash);
+    for (int i = 1; i <= len; i += 1) {
+        num += hash[len-i] * i;
+    }
+
+    return num;
+}
+
+int status_header(int code)
+{
+    char status[128] = {'\0'};
+    switch (code) {
+    // 200 level
+    case 200: strcpy(status, "200 OK"); break;
+    case 201: strcpy(status, "201 Created"); break;
+
+    // 300 level
+    case 301: strcpy(status, "301 Moved Permanently"); break;
+    case 302: strcpy(status, "302 Found"); break;
+
+    // 400 level
+    case 400: strcpy(status, "400 Bad Request"); break;
+    case 404: strcpy(status, "404 Not Found"); break;
+    case 405: strcpy(status, "405 Method Not Allowed"); break;
+    case 422: strcpy(status, "422 Unprocessable Entity"); break;
+    case 429: strcpy(status, "429 Too Many Requests"); break;
+
+    case 500:
+    default:
+        strcpy(status, "500 Internal Server Error"); break;
+    }
+
+    return printf("HTTP/1.1 %s\r\n", status);
+}
+
+int do_redirect(const char *loc, int len) {
+    char *encoded;
+    int success;
+    if ( (encoded = curl_easy_escape(NULL, loc, len)) != NULL) {
+        status_header(302);
+        printf("Location: %s", encoded);
+        curl_free(encoded);
+        success = 0;
+    } else {
+        status_header(500);
+        success = -1;
+    }
+
+    return success;
+}
+
+void parse_response(redisReply *r)
+{
+        switch (r->type) {
+        case REDIS_REPLY_NIL:
+            not_found();
+            break;
+        case REDIS_REPLY_STRING:
+            do_redirect(r->str, r->len);
+            break;
+        case REDIS_REPLY_ERROR:
+        default:
+            status_header(500);
+            break;
+        }
 }
