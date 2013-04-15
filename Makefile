@@ -1,6 +1,12 @@
-# Faptime.biz Makefile
-# Copyright (c) 2013 Kyle Wanamaker <kyle dot wanamaker at gmail dot com>
-# This file is licensed under the GNU GPLv3
+###
+# Makefile
+#
+# Faptime.biz
+# A url shortener
+# Copyright (c) 2013, Kyle Wanamaker
+# Licensed under the GNU GPLv3
+# Please see the full text of the license in COPYING
+###
 
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis

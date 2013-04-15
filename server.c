@@ -1,7 +1,11 @@
 /**
- *Faptime.biz
+ * server.c
+ *
+ * Faptime.biz
  * A url shortener
- * Copyright 2013, Kyle Wanamaker
+ * Copyright (c) 2013, Kyle Wanamaker
+ * Licensed under the GNU GPLv3
+ * Please see the full text of the license in COPYING
  */
 
 #include "fcgi_stdio.h"     /* Must include before stdio.h */

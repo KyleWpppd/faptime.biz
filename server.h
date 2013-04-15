@@ -1,7 +1,11 @@
 /**
- *Faptime.biz
+ * server.h
+ *
+ * Faptime.biz
  * A url shortener
- * Copyright 2013, Kyle Wanamaker
+ * Copyright (c) 2013, Kyle Wanamaker
+ * Licensed under the GNU GPLv3
+ * Please see the full text of the license in COPYING
  */
 
 #ifndef HAVE_FAPTIME_H
