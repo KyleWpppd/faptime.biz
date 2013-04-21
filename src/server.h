@@ -15,7 +15,7 @@ extern int main(void);
 extern void parse_response(redisReply *);
 
 extern int is_valid_hash(const char *hash);
-extern char * faptime_encode(char *dest, long long num);
+extern char *faptime_encode(char *dest, long long num);
 extern long long faptime_decode(char *hash);
 
 extern int status_header(int code);
