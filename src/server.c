@@ -13,38 +13,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <assert.h>
 
 #include <curl/curl.h>
 
 #include "hiredis.h"
+#include "encode.h"
 #include "server.h"
 
 
 #define REDIS_PORT 6379
 #define REDIS_SERVER (char*)"127.0.0.1"
-#define MAX_HASH_LENGTH 10
-
-#define HASH_OK 0
-#define HASH_EMPTY 1
-#define HASH_NOT_PATH 2
-#define HASH_BAD_CHAR 3
-#define HASH_BAD_FORMAT 4
-
-#define TABLE_SIZE 62
-const char table[62] = {
-	/* WnlV9kuBF4aXxYcRofAQS3ImTpH7Pb0NGwLZegK12vr6Oid5EDzJsyqtU8hCMj */
-	/*              0       1       2       3       4       5       6       7       8       9 */
-	/*  0 */ 'W', 'n', 'l', 'V', '9', 'k', 'u', 'B', 'F', '4',
-	/* 10 */ 'a', 'X', 'x', 'Y', 'c', 'R', 'o', 'f', 'A', 'Q',
-	/* 20 */ 'S', '3', 'I', 'm', 'T', 'p', 'H', '7', 'P', 'b',
-	/* 30 */ '0', 'N', 'G', 'w', 'L', 'Z', 'e', 'g', 'K', '1',
-	/* 40 */ '2', 'v', 'r', '6', 'O', 'i', 'd', '5', 'E', 'D',
-	/* 50 */ 'z', 'J', 's', 'y', 'q', 't', 'U', '8', 'h', 'C',
-	/* 60 */ 'M', 'j'
-};
-
+#define ERR_REDIS_CONNECT 4
 
 char *s_getenv(char *var)
 {
@@ -53,78 +33,69 @@ char *s_getenv(char *var)
 	return tmp == NULL ? "" : tmp;
 }
 
+redisContext *faptime_redis_connect() {
+	redisContext *context;
+	struct timeval timeout = { 1, 500000 };	// 1.5 seconds
+
+	context =
+	    redisConnectWithTimeout(REDIS_SERVER, REDIS_PORT, timeout);
+	if (context == NULL) {
+		fprintf(stderr,
+			"Connection error: can't allocate redis context\n");
+		return NULL;
+	} else if (context->err) {
+		fprintf(stderr, "Connection error: %s\n", context->errstr);
+		redisFree(context);
+		return NULL;
+	}
+	return context;
+}
 
 int main()
 {
 	redisContext *context;
-	redisReply *reply;
-
-	struct timeval timeout = { 1, 500000 };	// 1.5 seconds
-	context =
-	    redisConnectWithTimeout(REDIS_SERVER, REDIS_PORT, timeout);
-	if (context == NULL || context->err) {
-		if (context) {
-			fprintf(stderr, "Connection error: %s\n",
-				context->errstr);
-			redisFree(context);
-		} else {
-			fprintf(stderr,
-				"Connection error: can't allocate redis context\n");
-		}
-		exit(1);
+	if (NULL == (context = faptime_redis_connect())) {
+		exit(ERR_REDIS_CONNECT);
 	}
 
-	char hashout[MAX_HASH_LENGTH + 1] = { '\0' };
-	char request_hash[MAX_HASH_LENGTH + 1] = { '\0' };
-
-	int urilen;
 	long long url_id = 0;
+	char *req_uri;
+
 	while (FCGI_Accept() >= 0) {
 		/* Only accept GET requests */
 		if (strcasecmp(s_getenv("REQUEST_METHOD"), "GET") != 0) {
 			method_not_allowed("GET");
 			break;
 		}
-		// Make sure the hash is not too long
-		// No reason to read beyond the max length
-		urilen =
-		    strnlen(s_getenv("REQUEST_URI"), MAX_HASH_LENGTH + 1);
-		if (!urilen || urilen > MAX_HASH_LENGTH) {
-			not_found();
-			fprintf(stderr, "URI was invalid: '%s'\n",
-				s_getenv("REQUEST_URI"));
-			break;
-		}
 
-		strcpy(request_hash, s_getenv("REQUEST_URI"));
-		if (is_valid_hash(request_hash) == HASH_OK) {
-			url_id = faptime_decode(request_hash);
-			fprintf(stderr, "Hash maps to id: %lld\n", url_id);
-			reply =
-			    redisCommand(context, "GET urlkey:%lld",
-					 url_id);
-			freeReplyObject(reply);
-		} else {
+		req_uri = s_getenv("REQUEST_URI");
+		if (invalid_hash(req_uri)) {
 			not_found();
 			fprintf(stderr, "Hash was invalid.\n");
 			break;
-
 		}
 
-		reply =
-		    redisCommand(context, "GET urlkey:%s", request_hash);
-		printf("HTTP/1.1 200 OK\r\n" "Content-Type: text/plain\r\n"
-		       "\r\n");
-
-		fprintf(stderr, "Hash: %s\n",
-			faptime_encode(hashout,
-				       atoll(s_getenv("ENCODE"))));
-
-		fprintf(stderr, "PING: %s\n", reply->str);
-	}
+		url_id = faptime_decode(req_uri);
+		switch (faptime_redirect(context, url_id)) {
+		case FAPTIME_REDIRECT_OK:
+			break;
+		case FAPTIME_NOT_FOUND:
+			not_found();
+			break;
+		case FAPTIME_SERVER_ERROR:
+		default:
+			server_error();
+			break;
+		}
+	} /* while */
 	redisFree(context);
 
 	return 0;
+}
+
+int server_error()
+{
+	return status_header(500);
 }
 
 int not_found()
@@ -139,67 +110,11 @@ int method_not_allowed(const char *allow)
 	return len;
 }
 
-
-int is_valid_hash(const char *hash)
-{
-	int len = strnlen(hash, MAX_HASH_LENGTH + 1);
-
-	if (len == 0)
-		return HASH_EMPTY;
-	if (len > MAX_HASH_LENGTH)
-		return HASH_BAD_FORMAT;
-	if (hash[0] != '/')
-		return HASH_NOT_PATH;
-
-	int i = 0;
-	while (hash[++i] != '\0' && i <= MAX_HASH_LENGTH) {
-		fprintf(stderr, "Alnum @ %d?	 '%c' \n", i, hash[i]);
-		if (!isalnum(hash[i]))
-			return HASH_BAD_CHAR;
-	}
-	fprintf(stderr, "Hash OK!\n");
-	return HASH_OK;
-}
-
-
-char *faptime_encode(char *dest, long long num)
-{
-	strcpy(dest, "");
-	char *tmp = dest;
-	int remainder;
-	char c;
-	fprintf(stderr, "Now encoding: %lld\n", num);
-	while (num != 0) {
-		remainder = num % TABLE_SIZE;
-		num = num / TABLE_SIZE;
-		*dest++ = c = table[remainder];
-		fprintf(stderr, "Chr: '%c'\tNum: %lld,\tRem: %d\n", c, num,
-			remainder);
-	}
-	*dest = '\0';
-	return tmp;
-}
-
-long long faptime_decode(char *hash)
-{
-	if (strnlen(hash, MAX_HASH_LENGTH + 1) > MAX_HASH_LENGTH ||
-	    !strlen(hash))
-		return -1;
-
-	long long num = 0;
-	int len = strlen(hash);
-	for (int i = 1; i <= len; i += 1) {
-		num += hash[len - i] * i;
-	}
-
-	return num;
-}
-
 int status_header(int code)
 {
 	char status[128] = { '\0' };
 	switch (code) {
-		// 200 level
+
 	case 200:
 		strcpy(status, "200 OK");
 		break;
@@ -207,7 +122,6 @@ int status_header(int code)
 		strcpy(status, "201 Created");
 		break;
 
-		// 300 level
 	case 301:
 		strcpy(status, "301 Moved Permanently");
 		break;
@@ -215,7 +129,6 @@ int status_header(int code)
 		strcpy(status, "302 Found");
 		break;
 
-		// 400 level
 	case 400:
 		strcpy(status, "400 Bad Request");
 		break;
@@ -241,7 +154,7 @@ int status_header(int code)
 	return printf("HTTP/1.1 %s\r\n", status);
 }
 
-int do_redirect(const char *loc, int len)
+int _redirect_header(const char *loc, int len)
 {
 	char *encoded;
 	int success;
@@ -249,27 +162,37 @@ int do_redirect(const char *loc, int len)
 		status_header(302);
 		printf("Location: %s", encoded);
 		curl_free(encoded);
-		success = 0;
+		success = 1;
 	} else {
-		status_header(500);
-		success = -1;
+		success = 0;
 	}
 
 	return success;
 }
 
-void parse_response(redisReply * r)
+int faptime_redirect(redisContext *context, long long url_id)
 {
-	switch (r->type) {
+	if (url_id < 1)
+		return FAPTIME_NOT_FOUND;
+
+	redisReply *reply;
+	int status;
+	reply = redisCommand(context, "GET urlkey:%lld", url_id);
+	switch (reply->type) {
 	case REDIS_REPLY_NIL:
-		not_found();
+		status = FAPTIME_NOT_FOUND;
 		break;
 	case REDIS_REPLY_STRING:
-		do_redirect(r->str, r->len);
+		status = _redirect_header(reply->str, reply->len) ?
+			FAPTIME_REDIRECT_OK : FAPTIME_SERVER_ERROR;
 		break;
 	case REDIS_REPLY_ERROR:
 	default:
-		status_header(500);
+		status = FAPTIME_SERVER_ERROR;
 		break;
 	}
+
+	freeReplyObject(reply);
+	return status;
 }
+

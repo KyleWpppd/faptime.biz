@@ -1,26 +1,28 @@
 /**
  * server.h
  *
- * Faptime.biz
+ * Faptime
  * A url shortener
  * Copyright (c) 2013, Kyle Wanamaker
  * Licensed under the GNU GPLv3
  * Please see the full text of the license in COPYING
  */
 
-#ifndef HAVE_FAPTIME_H
-#define HAVE_FAPTIME_H
+#ifndef HAVE_FAPTIME_SERVER_H
+#define HAVE_FAPTIME_SERVER_H
+
+#define FAPTIME_NOT_FOUND 404
+#define FAPTIME_REDIRECT_OK 302
+#define FAPTIME_SERVER_ERROR 500
+
 
 extern int main(void);
-extern void parse_response(redisReply *);
-
-extern int is_valid_hash(const char *hash);
-extern char *faptime_encode(char *dest, long long num);
-extern long long faptime_decode(char *hash);
-
 extern int status_header(int code);
-extern int do_redirect(const char *loc, int len);
-extern int not_found();
+
+extern int faptime_redirect(redisContext *context, long long url_id);
+extern int _redirect_header(const char *loc, int len);
+extern int not_found(void);
+extern int server_error(void);
 extern int method_not_allowed(const char *allow);
 
 #endif
