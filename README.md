@@ -15,6 +15,22 @@ sockets, so I created Faptime. As of this writing, I am using FastCGI rather
 than the sockets API because I wanted to get something out the door, then
 "improve" Faptime by using the sockets API.
 
+The Faptime server does not run as a daemon at this point, I am using
+[`spawn-fcgi`](http://redmine.lighttpd.net/projects/spawn-fcgi), a lighttpd tool
+to manage launching my binary and binding it to a socket.
+
+### Building ###
+
+I had to learn the basics of GNU Make to get this done, so I cannot really say
+how well the `Makefile` will work. I am successfully building a binary on Mac
+OSX 10.8, and I hope to keep the codebase dependant upon on the C Standard
+Library for portability.
+
+### Testing ###
+
+There isn't any yet. =(
+
+
 
 ### Requirements & Dependencies ###
 
