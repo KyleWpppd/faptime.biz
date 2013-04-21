@@ -46,14 +46,16 @@ const char table[62] = {
 };
 
 
-char * s_getenv(char * var) {
-        char * tmp;
+char *s_getenv(char *var)
+{
+        char *tmp;
         tmp = getenv(var);
         return tmp == NULL ? "" : tmp;
 }
 
 
-int main() {
+int main()
+{
 	redisContext *context;
 	redisReply *reply;
 
@@ -124,23 +126,22 @@ int not_found() {
 }
 
 
-int method_not_allowed(const char *allow) {
+int method_not_allowed(const char *allow)
+{
         int len = status_header(405) +
                 printf("Allow: %s\r\n", allow);
         return len;
 }
 
 
-int is_valid_hash(const char *hash) {
+int is_valid_hash(const char *hash)
+{
 	int len = strnlen(hash, MAX_HASH_LENGTH+1);
-	// 0-length string
+
 	if (len == 0) return HASH_EMPTY;
 	if (len > MAX_HASH_LENGTH) return HASH_BAD_FORMAT;
-	if (hash[0] != '/') {
-                fprintf(stderr, "No leading slash\n");
-                return HASH_NOT_PATH;
-        }
-	// Else check each char
+	if (hash[0] != '/') return HASH_NOT_PATH;
+
 	int i = 0;
 	while (hash[++i] != '\0' && i <= MAX_HASH_LENGTH) {
 		fprintf(stderr, "Alnum @ %d?	 '%c' \n", i, hash[i]);
@@ -151,9 +152,10 @@ int is_valid_hash(const char *hash) {
 }
 
 
-char * faptime_encode(char *dest, long long num) {
+char *faptime_encode(char *dest, long long num)
+{
 	strcpy(dest, "");
-	char * tmp = dest;
+	char *tmp = dest;
 	int remainder;
 	char c;
 	fprintf(stderr, "Now encoding: %lld\n", num);
@@ -167,10 +169,11 @@ char * faptime_encode(char *dest, long long num) {
 	return tmp;
 }
 
-long long faptime_decode(char *hash) {
-	if (strnlen(hash, MAX_HASH_LENGTH+1) > MAX_HASH_LENGTH || ! strlen(hash)) {
+long long faptime_decode(char *hash)
+{
+	if (strnlen(hash, MAX_HASH_LENGTH+1) > MAX_HASH_LENGTH ||
+            ! strlen(hash))
                 return -1;
-	}
 
 	long long num = 0;
 	int len = strlen(hash);
