@@ -1,0 +1,5 @@
+Testing
+=======
+
+This is less about real testing being able to run a few limited examples through faptime just as a sanity check to make sure everything is stable. The heart of this "testing" framework is a bash script that passes the CGI required environment variables into faptime.
+
