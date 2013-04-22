@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
+#include <math.h>
 
 #include "encode.h"
 
@@ -24,7 +26,7 @@
 #define MAX_HASH_LENGTH 10
 
 #define TABLE_SIZE 62
-const char table[62] = {
+const char table[TABLE_SIZE+1] = {
 	/* WnlV9kuBF4aXxYcRofAQS3ImTpH7Pb0NGwLZegK12vr6Oid5EDzJsyqtU8hCMj */
 	/*        0    1    2    3    4    5    6    7    8    9 */
 	/*  0 */ 'W', 'n', 'l', 'V', '9', 'k', 'u', 'B', 'F', '4',
@@ -33,8 +35,19 @@ const char table[62] = {
 	/* 30 */ '0', 'N', 'G', 'w', 'L', 'Z', 'e', 'g', 'K', '1',
 	/* 40 */ '2', 'v', 'r', '6', 'O', 'i', 'd', '5', 'E', 'D',
 	/* 50 */ 'z', 'J', 's', 'y', 'q', 't', 'U', '8', 'h', 'C',
-	/* 60 */ 'M', 'j'
+	/* 60 */ 'M', 'j', '\0'
 };
+
+int lookup_table[128] = {0};
+void faptime_create_lookup_table() {
+	int i = 0;
+	char cc;
+	for (i = strlen(table)-1; i >= 0; i--) {
+		cc = table[i];
+		assert(isalnum(cc));
+		lookup_table[((int) cc)] = i;
+	}
+}
 
 int invalid_hash(const char *hash)
 {
@@ -83,9 +96,11 @@ long long faptime_decode(char *hash)
 
 	long long num = 0;
 	int len = strlen(hash);
+	int c;
 	for (int i = 1; i <= len; i += 1) {
-		num += hash[len - i] * i;
+		c = (int) hash[len - i];
+		num += lookup_table[c] * powl(62, i);
 	}
-
+	fprintf(stderr, "Hash: '%s' => %lld\n", hash, num);
 	return num;
 }

@@ -11,6 +11,7 @@
 #ifndef HAVE_FAPTIME_ENCODE_H
 #define HAVE_FAPTIME_ENCODE_H
 
+extern void faptime_create_lookup_table();
 extern int invalid_hash(const char *hash);
 extern char *faptime_encode(char *dest, long long num);
 extern long long faptime_decode(char *hash);

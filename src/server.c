@@ -61,6 +61,8 @@ int main()
 	long long url_id = 0;
 	char *req_uri;
 
+	faptime_create_lookup_table();
+
 	while (FCGI_Accept() >= 0) {
 		/* Only accept GET requests */
 		if (strcasecmp(s_getenv("REQUEST_METHOD"), "GET") != 0) {
