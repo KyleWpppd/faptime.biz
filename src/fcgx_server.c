@@ -24,15 +24,20 @@
 
 #define ERR_NO_SOCK 1
 
-int default_message(FCGX_Stream *out, int *count) {
-	return FCGX_FPrintF(out,
-		"Content-type: text/html\r\n"
-		"\r\n"
-		"<title>FastCGI echo (fcgiapp version)</title>"
-		"<h1>FastCGI echo (fcgiapp version)</h1>\n"
-		"Request number %d,	Process ID: %d<p>\n",
-		++(*count), getpid());
+int default_message(FCGX_Stream *out, FCGX_ParamArray *envp, int *count) {
+	int i;
+	i = FCGX_FPrintF(out,
+			 "Content-type: text/html\r\n"
+			 "\r\n"
+			 "<title>FastCGI echo (fcgiapp version)</title>\n"
+			 "<h1>FastCGI echo (fcgiapp version)</h1>\n"
+			 "Request number %d,	Process ID: %d<p>\n"
+			 "Requested url '%s'\n",
+			 ++(*count), getpid(),
+			 FCGX_GetParam("REQUEST_URI", *envp));
+	return i;
 }
+
 
 int main()
 {
@@ -43,7 +48,7 @@ int main()
 	while (FCGX_Accept(&in, &out, &err, &envp) >= 0) {
 		FAPTIME_REQ_INIT();;
 		debug_log("this is a debug message");
-		default_message(out, &count);
+		default_message(out, &envp, &count);
 	}
 	return 0;
 }

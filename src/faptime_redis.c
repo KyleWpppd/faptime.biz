@@ -1,5 +1,5 @@
 /**
- * redis.h
+ * faptime_redis.c
  *
  * Faptime
  * A url shortener

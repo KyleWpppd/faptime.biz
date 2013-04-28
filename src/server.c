@@ -20,6 +20,7 @@
 #include "fcgi_stdio.h"		/* Must include before stdio.h */
 
 #include "hiredis.h"
+#include "faptime_redis.h"
 #include "encode.h"
 #include "server.h"
 
