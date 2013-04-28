@@ -5,11 +5,9 @@
 
 #include <assert.h>
 
-#include "fcgiapp.h"
+#include "faptime_utils.h"
 
-#define FAPTIME_STREAM_IN 0
-#define FAPTIME_STREAM_OUT 1
-#define FAPTIME_STREAM_ERR 2
+#include "fcgiapp.h"
 
 static FCGX_Stream *in, *out, *err;
 static FCGX_ParamArray envp;

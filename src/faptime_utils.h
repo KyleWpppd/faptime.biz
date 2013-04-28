@@ -13,39 +13,50 @@
 
 #define DEBUG 1
 
-#include <string.h>
+#define FAPTIME_STREAM_IN 0
+#define FAPTIME_STREAM_OUT 1
+#define FAPTIME_STREAM_ERR 2
+
 #include <stdarg.h>
+
+#include "faptime_header.h"
 
 #include "fcgiapp.h"
 
-extern int faptime_error(const char *format, ...);
-extern FCGX_Stream *faptime_get_stream(int stream_no);
-extern int faptime_error_bind(FCGX_Stream *in, FCGX_Stream *out,
+int faptime_error(const char *format, ...);
+FCGX_Stream *faptime_get_stream(int stream_no);
+void faptime_error_bind(FCGX_Stream *in, FCGX_Stream *out,
 			      FCGX_Stream *err, FCGX_ParamArray envp);
-
-#define FAPTIME_REQ_INIT() \
-	do {							\
-		faptime_error_bind(in, out, err, envp);	\
-	} while (0)
-
-#define poop() \
-	do {   \
-		if (DEBUG);			\
-	} while (0)
-
 
 #define debug_log(fmt, ...)				\
 	do {						\
 		if (DEBUG) {				\
-			error_log(fmt, ##__VA_ARGS__);	\
+			fap_log("[DEBUG] ", fmt, ##__VA_ARGS__);	\
 		}					\
 	} while (0)
 
-#define error_log(fmt, ...)						\
+#define error_log(fmt, ...)				\
+	do {						\
+		fap_log("[ERROR] ", fmt, ##__VA_ARGS__);	\
+	} while (0)
+
+#define fap_log(prefix, fmt, ...)					\
 	do {								\
 		FCGX_Stream *err = faptime_get_stream(2);		\
-		FCGX_FPrintF(err, "[ERROR] %s:%d:%s(): " fmt, __FILE__,	\
+		FCGX_FPrintF(err, prefix "%s:%d:%s(): " fmt "\n", __FILE__,	\
 			     __LINE__, __func__, ##__VA_ARGS__);		\
+	} while (0)
+
+#define FAPTIME_REQ_INIT() \
+	do {							\
+		faptime_error_bind(in, out, err, envp);	\
+		int c = faptime_header_init();			\
+		debug_log("header init complete (%d)", c);	\
+	} while (0)
+
+#define FAPTIME_REQ_FINISH() \
+	do {					\
+		faptime_header_print();	\
 	} while (0)
 
 
