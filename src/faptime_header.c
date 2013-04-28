@@ -17,10 +17,17 @@ int faptime_header_init()
 {
 	req_status = 200;
 	faptime_header_free();
+	debug_log("Allocating header buffer '%p'", h_buf);
 	if (NULL == (h_buf = malloc(sizeof(char) * H_BUF_LEN+1))) {
 		error_log("Failed to allocate header buffer");
 		return 0;
 	}
+	debug_log("Allocated header buffer @ '%p'", h_buf);
+	/** @FIXME this is a hack because somewhere we aren't null-terminating
+	 * properly. This means headers are added on each input. This fixes the
+	 * issue, but I don't know why it's an issue to begin with.
+	 */
+	memset(h_buf, '\0', H_BUF_LEN * sizeof(h_buf[0]));
 	return 1;
 }
 
@@ -103,6 +110,7 @@ int faptime_header_print()
 
 int faptime_header_free()
 {
+	debug_log("Freeing header buffer %p", h_buf);
 	free(h_buf);
 	return 1;
 }
@@ -119,15 +127,18 @@ int faptime_header_cat(char *header) {
 		exit(1);
 	}
 
-	int b_size = sizeof(h_buf);
-	if (strlen(header)+strlen("\r\n")+1 > H_BUF_LEN - strlen(h_buf)) {
+	int remain = H_BUF_LEN - strlen(h_buf);
+	if (strlen(header)+strlen("\r\n")+1 > remain) {
 		error_log("Header buffer exhausted.\n");
 		return -1;
 	}
 
-	strcat(h_buf, header);
-	strcat(h_buf, "\r\n");
-	return b_size - strlen(h_buf);
+	strncat(h_buf, header, remain-3);
+	strncat(h_buf, "\r\n\0", 3);
+
+	debug_log("HBUF now:\n%s", h_buf);
+
+	return H_BUF_LEN - strlen(h_buf);
 }
 
 int faptime_set_redirect(char *url)
@@ -137,7 +148,7 @@ int faptime_set_redirect(char *url)
 		error_log("Unable to allocate memory for redirect");
 		return 0;
 	}
-	faptime_header_add(s);
+	faptime_header_cat(s);
 	free(s);
 	return 1;
 }
