@@ -10,7 +10,7 @@
 
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis
-CFLAGS=-Wall -g -v
+CFLAGS=-Wall -g
 LDFLAGS=-lhiredis  -lfcgi -lcurl
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 
@@ -22,7 +22,7 @@ OBJ_FILES := $(addprefix obj/,$(notdir $(C_FILES:.c=.o)))
 all: $(OBJ_FILES)
 
 clean:
-	-rm -r faptime obj/
+	-rm -r faptime fcgx obj/
 
 faptime: $(OBJ_FILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ_FILES)
