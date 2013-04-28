@@ -8,7 +8,7 @@
  * Please see the full text of the license in COPYING
  */
 
-#include "fcgi_stdio.h"		/* Must include before stdio.h */
+#include "fcgi_config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,13 +17,13 @@
 
 #include <curl/curl.h>
 
+#include "fcgi_stdio.h"		/* Must include before stdio.h */
+
 #include "hiredis.h"
 #include "encode.h"
 #include "server.h"
 
 
-#define REDIS_PORT 6379
-#define REDIS_SERVER (char*)"127.0.0.1"
 #define ERR_REDIS_CONNECT 4
 
 char *s_getenv(char *var)
@@ -33,25 +33,8 @@ char *s_getenv(char *var)
 	return tmp == NULL ? "" : tmp;
 }
 
-redisContext *faptime_redis_connect() {
-	redisContext *context;
-	struct timeval timeout = { 1, 500000 };	// 1.5 seconds
 
-	context =
-	    redisConnectWithTimeout(REDIS_SERVER, REDIS_PORT, timeout);
-	if (context == NULL) {
-		fprintf(stderr,
-			"Connection error: can't allocate redis context\n");
-		return NULL;
-	} else if (context->err) {
-		fprintf(stderr, "Connection error: %s\n", context->errstr);
-		redisFree(context);
-		return NULL;
-	}
-	return context;
-}
-
-int main()
+int mainly()
 {
 	redisContext *context;
 	if (NULL == (context = faptime_redis_connect())) {
@@ -97,18 +80,20 @@ int main()
 
 int server_error()
 {
-	return status_header(500);
+	return status_header(500) + printf("\r\n\r\n");
 }
 
 int not_found()
 {
-	return status_header(404);
+	return status_header(404) + printf("\r\n\r\n");
 }
 
 
 int method_not_allowed(const char *allow)
 {
-	int len = status_header(405) + printf("Allow: %s\r\n", allow);
+	int len = status_header(405)
+		+ printf("Allow: %s\r\n", allow)
+		+ printf("\r\n\r\n");
 	return len;
 }
 
@@ -153,7 +138,7 @@ int status_header(int code)
 		break;
 	}
 
-	return printf("HTTP/1.1 %s\r\n", status);
+	return printf("HTTP/1.1 %s\r\n", status) + printf("Content-Type: text/html\r\n");
 }
 
 int _redirect_header(const char *loc, int len)
@@ -162,7 +147,7 @@ int _redirect_header(const char *loc, int len)
 	int success;
 	if ((encoded = curl_easy_escape(NULL, loc, len)) != NULL) {
 		status_header(302);
-		printf("Location: %s", encoded);
+		printf("Location: %s\r\n", encoded);
 		curl_free(encoded);
 		success = 1;
 	} else {
@@ -179,7 +164,7 @@ int faptime_redirect(redisContext *context, long long url_id)
 
 	redisReply *reply;
 	int status;
-	reply = redisCommand(context, "GET urlkey:%lld", url_id);
+	reply = redisCommand(context, "GET url_id:%lld", url_id);
 	switch (reply->type) {
 	case REDIS_REPLY_NIL:
 		status = FAPTIME_NOT_FOUND;

@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <math.h>
 
+#include "debug.h"
 #include "encode.h"
 
 #define HASH_OK 0
@@ -42,7 +43,7 @@ int lookup_table[128] = {0};
 void faptime_create_lookup_table() {
 	int i = 0;
 	char cc;
-	for (i = strlen(table)-1; i >= 0; i--) {
+	for (i = 0; i < strlen(table)-1; i++) {
 		cc = table[i];
 		assert(isalnum(cc));
 		lookup_table[((int) cc)] = i;
@@ -62,11 +63,11 @@ int invalid_hash(const char *hash)
 
 	int i = 0;
 	while (hash[++i] != '\0' && i <= MAX_HASH_LENGTH) {
-		fprintf(stderr, "Alnum @ %d?	 '%c' \n", i, hash[i]);
+		/* faptime_debug(stderr, "Alnum @ %d?	 '%c' \n", i, hash[i]); */
 		if (!isalnum(hash[i]))
 			return HASH_BAD_CHAR;
 	}
-	fprintf(stderr, "Hash OK!\n");
+	/* faptime_debug(stderr, "Hash OK!\n"); */
 	return HASH_OK;
 }
 
@@ -76,13 +77,13 @@ char *faptime_encode(char *dest, long long num)
 	char *tmp = dest;
 	int remainder;
 	char c;
-	fprintf(stderr, "Now encoding: %lld\n", num);
+	/* faptime_debug(stderr, "Now encoding: %lld\n", num); */
 	while (num != 0) {
 		remainder = num % TABLE_SIZE;
 		num = num / TABLE_SIZE;
 		*dest++ = c = table[remainder];
-		fprintf(stderr, "Chr: '%c'\tNum: %lld,\tRem: %d\n", c, num,
-			remainder);
+		/* faptime_debug(stderr, "Chr: '%c'\tNum: %lld,\tRem: %d\n", c, num, */
+		/* 	remainder); */
 	}
 	*dest = '\0';
 	return tmp;
@@ -99,8 +100,8 @@ long long faptime_decode(char *hash)
 	int c;
 	for (int i = 1; i <= len; i += 1) {
 		c = (int) hash[len - i];
-		num += lookup_table[c] * powl(62, i);
+		num += lookup_table[c] * powl(62, i-1);
 	}
-	fprintf(stderr, "Hash: '%s' => %lld\n", hash, num);
+	/* faptime_debug(stderr, "Hash: '%s' => %lld\n", hash, num); */
 	return num;
 }

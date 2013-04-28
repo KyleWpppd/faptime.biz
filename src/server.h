@@ -15,8 +15,7 @@
 #define FAPTIME_REDIRECT_OK 302
 #define FAPTIME_SERVER_ERROR 500
 
-
-extern int main(void);
+//extern int main(void);
 extern int status_header(int code);
 
 extern int faptime_redirect(redisContext *context, long long url_id);

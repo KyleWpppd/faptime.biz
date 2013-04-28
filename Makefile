@@ -27,6 +27,9 @@ clean:
 faptime: $(OBJ_FILES)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ_FILES)
 
+fcgx: $(OBJ_FILES)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ_FILES)
+
 obj/%.o: src/%.c
 	-mkdir obj
 	$(CC) $(CFLAGS) -c -o $@ $<
