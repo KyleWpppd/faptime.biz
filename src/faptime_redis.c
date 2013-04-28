@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "faptime_utils.h"
 #include "hiredis.h"
 
 #define REDIS_PORT 6379
@@ -20,17 +21,15 @@
 
 redisContext *faptime_redis_connect()
 {
-	redisContext *context;
 	struct timeval timeout = { 1, 500000 };	// 1.5 seconds
 
-	context =
+	redisContext *context =
 	    redisConnectWithTimeout(REDIS_SERVER, REDIS_PORT, timeout);
 	if (context == NULL) {
-		fprintf(stderr,
-			"Connection error: can't allocate redis context\n");
+		error_log("Redis connection error: can't allocate redis context");
 		return NULL;
 	} else if (context->err) {
-		fprintf(stderr, "Connection error: %s\n", context->errstr);
+		error_log("Redis connection error: %s\n", context->errstr);
 		redisFree(context);
 		return NULL;
 	}
@@ -38,21 +37,23 @@ redisContext *faptime_redis_connect()
 }
 
 
-char *faptime_get_url(redisContext * c, long long id, int *err)
+char *faptime_get_url(redisContext *c, long long id, int *err)
 {
-	char *url = "";
 	if (id < 1) {
 		*err = 404;
 		return NULL;
 	}
 
+	char *url = NULL;
 	redisReply *reply;
-	int status;
 	reply = redisCommand(c, "GET url_id:%lld", id);
+
 	switch (reply->type) {
 	case REDIS_REPLY_STRING:
 		*err = 0;
-		(void) strncpy(url, reply->str, reply->len + 1);
+		url = malloc(sizeof(char) * (reply->len+1));
+		if (url != NULL)
+			(void) strncpy(url, reply->str, reply->len + 1);
 		break;
 
 	case REDIS_REPLY_NIL:
