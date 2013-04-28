@@ -11,9 +11,15 @@
 #ifndef HAVE_FAPTIME_ENCODE_H
 #define HAVE_FAPTIME_ENCODE_H
 
-extern void faptime_create_lookup_table();
-extern int invalid_hash(const char *hash);
-extern char *faptime_encode(char *dest, long long num);
-extern long long faptime_decode(char *hash);
+#define FAPTIME_HASH_OK 0
+#define FAPTIME_HASH_EMPTY 1
+#define FAPTIME_HASH_NOT_PATH 2
+#define FAPTIME_HASH_BAD_CHAR 3
+#define FAPTIME_HASH_BAD_FORMAT 4
+
+void faptime_create_lookup_table();
+int valid_hash(const char *hash);
+char *faptime_encode(char *dest, long long num);
+long long faptime_decode(char *hash);
 
 #endif
