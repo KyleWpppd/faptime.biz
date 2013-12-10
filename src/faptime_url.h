@@ -20,16 +20,16 @@ typedef struct FaptimeUrl
 	int status;
 	char* url;
 	int urlLen;
-	char* hash;
+	unsigned char* hash;
 	int hashLen;
 } FaptimeUrl;
 
 // Attempts to insert the url into the DB and returns 0 on failure
 // this should be static in the file
 // unsigned long long _faptime_url_insert(FaptimeUrl* url, int &error);
-unsigned long long faptime_url_save(FaptimeUrl* url, int &error);
-FaptimeUrl* faptime_url_init(char* url, size_t len, int &error);
+unsigned long long faptime_url_save(FaptimeUrl* url, int *err);
+FaptimeUrl* faptime_url_init(char* url, size_t len, int *err);
 void free_faptime_url_object(void *faptime);
-
+unsigned char *faptime_url_hash(char *url, size_t len, int *err);
 
 #endif

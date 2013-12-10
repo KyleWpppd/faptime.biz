@@ -10,9 +10,18 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
-#include 'faptime_url.h'
+/* @TODO check and see if this needs to be a macro so it can be built on other targets
+   CommonCrypto just feels like it's an OS X specific thing. */
+#if defined(__APPLE__)
+#include <CommonCrypto/CommonDigest.h>
+#else
+#include <openssl/sha.h>
+#endif
+
+#include "faptime_url.h"
 
 void free_faptime_url_object(void *faptime) {
 	FaptimeUrl *f = faptime;
@@ -37,10 +46,11 @@ static void *create_url_object() {
 	return f;
 }
 
-FaptimeUrl* faptime_url_init(char* url, size_t len, int &error) {
-	error = 0;
-	Faptime* faptime;
-	char *buf, hashBuf;
+FaptimeUrl* faptime_url_init(char* url, size_t len, int *err) {
+	*err = 0;
+	FaptimeUrl *faptime;
+	char *buf;
+	unsigned char *hashBuf;
 	size_t hashLen = 0;
 
 	/* Toss invalid urls */
@@ -56,32 +66,58 @@ FaptimeUrl* faptime_url_init(char* url, size_t len, int &error) {
 
 	buf = malloc(len+1);
 	if (NULL == buf) {
-		freeFaptimeObject(faptime);
+		free_faptime_url_object(faptime);
 		return NULL;
 	}
 
 	/* Copy url (string) value */
 	memcpy(buf, url, len);
-	buf[len] == '\0';
+	buf[len] = '\0';
 	faptime->url = buf;
 	faptime->urlLen = len;
 	free(buf);
 
-	hashBuf = faptime_url_hash(url);
+
+	/* @TODO, this is wrong because I am allocating based on the
+	   implementation of another function. Ideally, the length should be set
+	   in the function calling the string.
+	 */
+	hashBuf = faptime_url_hash(url, len, err);
 	if (NULL == hashBuf) {
-		freeFaptimeObject(faptime);
+		free_faptime_url_object(faptime);
 		return NULL;
 	}
 
-	/* Copy hash value */
-	memcpy(hashBuf, hash, len);
-	hashBuf[len] == '\0';
-	faptime->url = hashBuf;
-	faptime->urlLen = hashLen;
+	faptime->hash = hashBuf;
+	faptime->hashLen = CC_SHA256_DIGEST_LENGTH;
 
+	return faptime;
 }
 
-char *faptime_url_hash(char *url, size_t len) {
-	// @@FIXME
-	return NULL;
+unsigned char *faptime_url_hash(char *url, size_t len, int *err) {
+	*err = 0;
+	unsigned char *digest = calloc(1 + CC_SHA256_DIGEST_LENGTH, sizeof(*digest));
+	if (NULL == digest) {
+		return NULL;
+	}
+
+
+	unsigned char *ret = CC_SHA256(url, len, digest);
+	assert(ret == digest);
+	digest[CC_SHA256_DIGEST_LENGTH] = '\0';
+
+	/* And the human-readable version */
+	/* It's double length because we cannot display the high bit. */
+	int hash_len = CC_SHA256_DIGEST_LENGTH * 2;
+	char *readable_hash = calloc(1 + hash_len, sizeof(*readable_hash));
+	if (NULL == readable_hash) {
+		free(digest);
+		return NULL;
+	}
+
+	for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; ++i) {
+		snprintf(&readable_hash[i*2], sizeof(readable_hash[i*2]), "%02x", digest[i]);
+	}
+
+	return digest;
 }
