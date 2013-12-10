@@ -20,7 +20,9 @@ typedef struct FaptimeUrl
 	int status;
 	char* url;
 	int urlLen;
-	unsigned char* hash;
+	unsigned char *digest;
+	int digestLen;
+	char* hash;
 	int hashLen;
 } FaptimeUrl;
 
@@ -30,6 +32,6 @@ typedef struct FaptimeUrl
 unsigned long long faptime_url_save(FaptimeUrl* url, int *err);
 FaptimeUrl* faptime_url_init(char* url, size_t len, int *err);
 void free_faptime_url_object(void *faptime);
-unsigned char *faptime_url_hash(char *url, size_t len, int *err);
+int faptime_url_hash(FaptimeUrl *f, char *url, size_t len, int *err);
 
 #endif
