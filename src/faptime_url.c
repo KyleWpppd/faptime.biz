@@ -47,7 +47,7 @@ static void *create_url_object() {
 }
 
 FaptimeUrl* faptime_url_init(char* url, size_t len, int *err) {
-	*err = 0;
+	if (err) *err = 0;
 	FaptimeUrl *faptime;
 	char *buf;
 	unsigned char *hashBuf;
@@ -97,7 +97,7 @@ FaptimeUrl* faptime_url_init(char* url, size_t len, int *err) {
 }
 
 int faptime_url_hash(FaptimeUrl *f, char *url, size_t len, int *err) {
-	*err = 0;
+	if (err) *err = 0;
 	unsigned char *digest = calloc(1 + CC_SHA256_DIGEST_LENGTH, sizeof *digest);
 	if (NULL == digest) {
 		return 0;
