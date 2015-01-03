@@ -1,5 +1,5 @@
 /**
- * encode.h
+ * faptime_encode.h
  *
  * Faptime
  * A url shortener

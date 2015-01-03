@@ -18,7 +18,7 @@
 
 #include "hiredis.h"
 
-#include "encode.h"
+#include "faptime_encode.h"
 #include "faptime_redis.h"
 #include "faptime_utils.h"
 

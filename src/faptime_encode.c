@@ -1,5 +1,5 @@
 /**
- * encode.c
+ * faptime_encode.c
  *
  * Faptime
  * A url shortener
@@ -15,8 +15,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include "debug.h"
-#include "encode.h"
+#include "faptime_encode.h"
 
 #include "faptime_utils.h"
 

@@ -31,21 +31,20 @@ START_TEST(check_table_validation)
 	struct fixture *fixtures[NUM_FIXTURES];
 	fixtures[0]->table	 = "abc";
 	fixtures[0]->allowed = "xyz";
-	fixtures[0]->expect	 = fail;
+	fixtures[0]->expect  = fail;
 
 	fixtures[1]->table	 = "aa";
 	fixtures[1]->allowed = "xyz";
-	fixtures[1]->expect	 = fail;
+	fixtures[1]->expect  = fail;
 
 	fixtures[2]->table	 = "xxyyzz";
 	fixtures[2]->allowed = "xyz";
-	fixtures[2]->expect	 = fail;
+	fixtures[2]->expect  = fail;
 
 
 	fixtures[3]->table	 = "zyx";
 	fixtures[3]->allowed = "xyz";
-	fixtures[3]->expect	 = pass;
-
+	fixtures[3]->expect  = pass;
 
 	for (int i = 0; i < NUM_FIXTURES; i++) {
 		ck_assert_int_eq(fixtures[i]->expect,
