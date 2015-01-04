@@ -52,7 +52,7 @@ int main()
 
 	faptime_create_lookup_table();
 
-	int count = 0;
+	/* int count = 0; */
 	int redis_errno = 0;
 	long long id = 0;
 	char *redirect_to, *req_uri;

@@ -31,6 +31,16 @@ void faptime_error_bind(FCGX_Stream *_in, FCGX_Stream *_out,
 	envp = _envp;
 }
 
+/* void fap_log(const char *prefix, const char *fmt, ...) { */
+/* { */
+/* 	va_list argp; */
+/* 	fprintf(stderr, prefix); */
+/* 	va_start(argp, fmt); */
+/* 	vfprintf(stderr, fmt, argp); */
+/* 	va_end(argp); */
+/* 	fprintf(stderr, "\n"); */
+/* } */
+
 FCGX_Stream *faptime_get_stream(int stream_no)
 {
 	FCGX_Stream *tmp;
