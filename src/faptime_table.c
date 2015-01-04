@@ -72,9 +72,11 @@ void faptime_free_table(struct faptime_table *ft) {
 
 	if (ft->table) {
 		free(ft->table);
+		ft->table = NULL;
 	}
 
 	free(ft);
+	ft = NULL;
 	return;
 }
 
@@ -306,7 +308,7 @@ struct faptime_table *faptime_table_copy(struct faptime_table *ft) {
 	return tmp;
 }
 
-static struct faptime_table *global_table;
+static struct faptime_table *global_table = NULL;
 struct faptime_table *faptime_get_global_table(void) {
 	return global_table;
 }
