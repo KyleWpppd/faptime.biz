@@ -1,3 +1,12 @@
+# Test bins
+/tests/bin
+
+# Configuration file
+/faptime.conf
+
+# TAGS
+/TAGS
+
 # Object files
 *.o
 

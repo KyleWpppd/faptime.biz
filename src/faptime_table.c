@@ -7,11 +7,14 @@
 #include <stdio.h>
 #include <limits.h>
 #include <assert.h>
+#include <math.h>
 #include <errno.h>
 extern int errno;
 
+#include "faptime_config.h"
 #include "faptime_table.h"
 #include "faptime_errors.h"
+#include "faptime_urls.h"
 
 static int write_table(int filedes, char *table, size_t table_len) {
 	int file_ok = fcntl(filedes, F_GETFD);
@@ -32,37 +35,92 @@ static int close_filedes(int filedes) {
 }
 
 static struct faptime_table * faptime_alloc_table() {
-	struct faptime_table *ft = calloc(1, sizeof(*ft));
+	faptime_table_t *ft = calloc(1, sizeof(*ft));
 	ft->len = 0;
 	ft->table = NULL;
-	memset(ft->lookup, 0, FAPTIME_LOOKUP_TABLE_SIZE);
+    for (int i = 0; i < FAPTIME_LOOKUP_TABLE_SIZE; i++) {
+        ft->lookup[i] = '\0';
+    }
+	/* memset(ft->lookup, FAPTIME_LOOKUP_INVALID, sizeof(ft->lookup)); */
 	return ft;
 }
 
-/* Create a random character table */
-int faptime_random_table_string(int size, char *dst) {
-	srandom(time(NULL));
-	char *table = malloc(sizeof(FAPTIME_AVAILABLE_CHARACTERS)+1);
-	strcpy(table, FAPTIME_AVAILABLE_CHARACTERS);
+char *shuffle_table(char *table) {
+	size_t len = strlen(table);
+	char *table_cpy = strdup(table);
+	char *buf = NULL;
 
-	int max = strlen(table);
-	if (size > max || size < 1) {
+	if (table_cpy == NULL ||
+		len < 2 ||
+		NULL == (buf = calloc(len + 1, sizeof *buf))) {
+		free(table_cpy);
+		free(buf);
+		return NULL;
+	}
+
+	srandom(time(NULL));
+	size_t ct = 0, i = 0;
+	while (ct < len) {
+		do {
+			/* Use 'random' rather than 'rand' because all bits in 'random' are usable. */
+			i = random() % len;
+		} while (! table_cpy[i]);
+		buf[ct++] = table_cpy[i];
+		table_cpy[i] = '\0';
+	}
+	buf[len] = '\0';
+	assert(len == strlen(buf));
+	free(table_cpy);
+	return buf;
+}
+
+/**
+	@brief Shuffles a copy of whitelisted characters to obtain an arbitrary base
+
+	@param dst The destination of the shuffled table
+
+	@param whitelist The allowable characters. A larger list means a larger
+	arbitrary-based number system.
+
+	@return int returns the length of the shuffled character array in dst or -1
+	in case of an error.
+*/
+int faptime_random_table_from_whitelist(char *dst, char *whitelist) {
+	size_t maxlen = strlen(FAPTIME_ALL_URL_CHARS);
+	size_t whitelist_len = strnlen(whitelist, maxlen + 1);
+	if (whitelist_len > maxlen) {
 		return -1;
 	}
 
-	int ct = 0, i = 0;
-	while (ct < size) {
-		do {
-			/* Use 'random' rather than 'rand' because all bits in 'random' are usable. */
-			i = random() % size;
-		} while (! table[i]);
-		dst[ct++] = table[i];
-		table[i] = '\0';
+	dst = shuffle_table(whitelist);
+	if (dst == NULL) {
+        return -1;
 	}
-	dst[size] = '\0';
-	assert(size == strlen(dst));
-	free(table);
-	return size;
+    return strlen(dst);
+}
+
+
+int faptime_random_table_from_base(char **dst, size_t base) {
+	/* It's not possible for a table to have more characters than the RFC-3986
+	   legal characters, because then it would have repeats or illegals. */
+	size_t max = strlen(FAPTIME_ALL_URL_CHARS);
+	if (base > max) {
+		return -1;
+	}
+	char *whitelist = calloc(base + 1, sizeof *whitelist);
+	if (! whitelist) {
+		return -1;
+	}
+
+	strncpy(whitelist, FAPTIME_ALL_URL_CHARS, base);
+	*dst = shuffle_table(whitelist);
+	assert(dst != NULL);
+	free(whitelist);
+    if (dst) {
+        return strlen(*dst);
+    }
+
+	return -1;
 }
 
 void faptime_free_table(struct faptime_table *ft) {
@@ -76,27 +134,18 @@ void faptime_free_table(struct faptime_table *ft) {
 	}
 
 	free(ft);
-	ft = NULL;
 	return;
 }
 
-struct faptime_table *faptime_random_table(int base) {
-	int max_base = strlen(FAPTIME_AVAILABLE_CHARACTERS);
-	if (base < 2 || base > max_base) {
+struct faptime_table *faptime_random_table(char *whitelist) {
+	char *tmp = NULL;
+	if (faptime_random_table_from_whitelist(tmp, whitelist) == -1) {
 		return NULL;
 	}
 
-	char *dst = calloc(base + 1, sizeof(*dst));
-	if (!dst) {
-		return NULL;
-	}
-	memset(dst, 'A', base);
-	dst[base] = '\0';
-	if (faptime_random_table_string(base, dst) != base) {
-		return NULL;
-	}
-
-	struct faptime_table *ft = faptime_table_from_string(dst, base, FAPTIME_AVAILABLE_CHARACTERS);
+	struct faptime_table *ft = faptime_table_from_string(tmp, whitelist);
+	free(tmp);
+	tmp = NULL;
 	return ft;
 }
 
@@ -120,51 +169,6 @@ int faptime_save_table(char *dest_path, char *table, size_t table_len) {
 	return save_ok;
 }
 
-int faptime_read_table(char *read_path, size_t maxlen, char *dst) {
-	int filedes = open(read_path, O_RDONLY | O_NONBLOCK);
-	if (filedes < 0) {
-		return -1;
-	}
-
-	struct stat st;
-	size_t bufsize = 0;
-	if (0 == fstat(filedes, &st)) {
-		/* In a normal case, st.st_size, a map_t (long long on my machine), is
-		   promoted to unsigned long long. This should be fine because a file's
-		   size cannot be negative. If map_t is larger than size_t, size_t
-		   should be promoted, and the comparison would succeed as expected. */
-		if (st.st_size - SIZE_MAX > 0) {
-			goto cleanup;
-		}
-		bufsize = st.st_size - maxlen > 0 ? maxlen : st.st_size;
-	} else {
-		goto cleanup;
-	}
-
-	char *tmp = calloc(bufsize+1, sizeof(char));
-	if (! tmp) {
-		goto cleanup;
-	}
-
-	if (read(filedes, tmp, bufsize) < 1) {
-		free(tmp);
-		goto cleanup;
-	}
-
-	tmp[bufsize] = '\0'; 		/* Probably redundant, since calloc should have filled with \0 */
-	size_t badidx = strspn(tmp, FAPTIME_AVAILABLE_CHARACTERS);
-	memset(dst, '\0', maxlen);
-
-	/* Copy until first invalid character */
-	memcpy(dst, tmp, badidx);
-	free(tmp);
-	close_filedes(filedes);
-	return badidx;
-
- cleanup:
-	close_filedes(filedes);
-	return -1;
-}
 
 void tabular_print(char *arr, int len, char type) {
 	for (int i = 0; i < 10; i ++) {
@@ -212,23 +216,48 @@ int faptime_print_table(struct faptime_table *ft) {
 	return 1;
 }
 
-int faptime_valid_table(char *table, size_t table_len, char* allowed) {
-	unsigned char seen[128] = { 0 };
-	unsigned char c;
-	/* Ensure no illegal characters */
-	if (strspn(table, allowed) < table_len) {
-		return 0;
+int faptime_valid_table(char *table, char* allowed) {
+	#define VALID 1
+	#define INVALID 0
+
+	if (table == NULL) {
+		return INVALID;
 	}
 
-	for (size_t i = 0; i < table_len; i++) {
-		c = table[i];
-		/* Greater than 127 check so table doesn't have to fit all unsigned chars */
-		if (c > 127 || seen[c]) {
-			return 0;
-		}
-		seen[c] = 1;
+	size_t maxlen = strlen(FAPTIME_ALL_URL_CHARS);
+	size_t table_len = strnlen(table, maxlen + 1);
+	if (!table_len || table_len > maxlen) {
+		return INVALID;
 	}
-	return 1;
+
+	char *tmpallowed;
+	tmpallowed = allowed ? strdup(allowed) : faptime_config_get_whitelist();
+	if (tmpallowed == NULL || table_len > strlen(tmpallowed)) {
+		return INVALID;
+	}
+
+	/* Ensure no illegal characters */
+	size_t illegal_idx = strspn(table, tmpallowed);
+    if (table_len != illegal_idx) {
+        return INVALID;
+    }
+
+	int table_status = VALID;
+	if (table_len == illegal_idx && table_len <= strlen(tmpallowed)) {
+        unsigned char seen[128] = { 0 };
+		for (size_t i = 0; i < table_len; i++) {
+            unsigned char c;
+			c = table[i];
+			/* Greater than 127 check so table doesn't have to fit all unsigned chars */
+			if (c > 127 || seen[c]) {
+				table_status = INVALID;
+                break;
+			}
+			seen[c] = 1;
+		}
+	}
+	free(tmpallowed);
+	return table_status;
 }
 
 
@@ -244,10 +273,60 @@ static void faptime_init_lookup_table(struct faptime_table *ft) {
 	}
 }
 
+int faptime_table_chartoi(const faptime_table_t *ft, const unsigned char c) {
+    if (ft == NULL) {
+        return -1;
+    }
+    if (c > (FAPTIME_LOOKUP_TABLE_SIZE - 1)) {
+        return FAPTIME_LOOKUP_INVALID;
+    }
+
+    int val = ft->lookup[c];
+    return val;
+}
 
 
-struct faptime_table * faptime_table_from_string(char *table, size_t table_len, char* allowed) {
-	if (! faptime_valid_table(table, table_len, allowed)) {
+int faptime_table_antoi(const faptime_table_t *ft, const char *str) {
+	#define ERROR -1
+    if (! str) {
+        return ERROR;
+    }
+
+    size_t maxlen = 0;
+    if (1) {
+        char *tmp; asprintf(&tmp, "%d", INT_MAX);
+        maxlen = strlen(tmp);
+        free(tmp);
+    }
+
+    /* This may segfault */
+    size_t strlen = strnlen(str, maxlen + 1);
+    if (! strlen || strlen > maxlen) {
+        return 0;
+    }
+
+    int sum = 0;
+    /* Values are read from right to left */
+    for (size_t i = 0; i < strlen; i++) {
+        char c = str[(strlen-1) - i];
+        long int val = faptime_table_chartoi(ft, c);
+        if (val == -1) {
+            return ERROR;
+        }
+        long int tmp = val * pow(ft->len, i);
+        /* This should be taking advantage of promotion here to get a larger
+           range from double than we can from int. */
+        if (tmp > INT_MAX || (sum + tmp) > INT_MAX) {
+            return -1;
+        }
+        sum += tmp;
+    }
+    return sum;
+}
+
+
+struct faptime_table * faptime_table_from_string(char *table, char* allowed) {
+	if (table == NULL || ! faptime_valid_table(table, allowed)) {
 		return NULL;
 	}
 
@@ -256,38 +335,13 @@ struct faptime_table * faptime_table_from_string(char *table, size_t table_len, 
 		return NULL;
 	}
 
-	ft->len = table_len;
-	char *copy = calloc(table_len+1, sizeof(*copy));
-	if (! copy) {
+	ft->len = strlen(table);
+	if (NULL == (ft->table = strdup(table))) {
 		faptime_free_table(ft);
 		return NULL;
 	}
 
-	strncpy(copy, table, table_len);
-	ft->table = copy;
-
 	faptime_init_lookup_table(ft);
-	return ft;
-}
-
-struct faptime_table *faptime_table_from_file(char *path) {
-	size_t len = strlen(FAPTIME_AVAILABLE_CHARACTERS);
-	char *table = calloc(len + 1, sizeof(*table));
-	if (!table) {
-		return NULL;
-	}
-
-	faptime_read_table(path, len, table);
-	if (strnlen(table, len+1) > len) {
-		exit(FAPTIME_ERR_BAD_TABLE);
-	}
-
-	struct faptime_table *ft = faptime_table_from_string(table, strnlen(table, len),
-														 FAPTIME_AVAILABLE_CHARACTERS);
-	free(table);
-	if (!ft) {
-		return NULL;
-	}
 	return ft;
 }
 
@@ -306,6 +360,14 @@ struct faptime_table *faptime_table_copy(struct faptime_table *ft) {
 
 	memcpy(tmp->table, ft->table, ft->len);
 	return tmp;
+}
+
+char *faptime_table_tostring(struct faptime_table *ft) {
+	if (ft == NULL || ft->table == NULL) {
+		return NULL;
+	}
+
+	return strdup(ft->table);
 }
 
 static struct faptime_table *global_table = NULL;
