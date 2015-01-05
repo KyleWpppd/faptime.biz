@@ -151,7 +151,7 @@ int faptime_read_table(char *read_path, size_t maxlen, char *dst) {
 		goto cleanup;
 	}
 
-	tmp[bufsize] = '\0'; 		/* Probably redundant, since calloc should have filled with \0 */
+	tmp[bufsize] = '\0';		/* Probably redundant, since calloc should have filled with \0 */
 	size_t badidx = strspn(tmp, FAPTIME_AVAILABLE_CHARACTERS);
 	memset(dst, '\0', maxlen);
 
@@ -215,8 +215,18 @@ int faptime_print_table(struct faptime_table *ft) {
 int faptime_valid_table(char *table, size_t table_len, char* allowed) {
 	unsigned char seen[128] = { 0 };
 	unsigned char c;
+	char *tmpallowed;
+	tmpallowed = strdup(allowed == NULL ? FAPTIME_AVAILABLE_CHARACTERS : allowed);
+	if (tmpallowed == NULL) {
+		return 0;
+	}
+
 	/* Ensure no illegal characters */
-	if (strspn(table, allowed) < table_len) {
+	size_t illegal_idx = strspn(table, tmpallowed);
+	free(tmpallowed);
+	tmpallowed = NULL;
+
+	if (illegal_idx < table_len) {
 		return 0;
 	}
 

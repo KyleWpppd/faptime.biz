@@ -11,7 +11,7 @@
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis
 CFLAGS=-Wall -pedantic -Werror -g
-LDFLAGS=-lhiredis -lfcgi -lcurl -lcheck
+LDFLAGS=-lhiredis -lfcgi -lcurl -lcheck -liniparser
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 
 C_FILES := $(wildcard src/*.c)
