@@ -1,6 +1,7 @@
 #include <check.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "../src/faptime_table.h"
 
@@ -8,25 +9,15 @@
 #define ONERROR_ABORT 1
 #define ONERROR_FAIL_TEST 2
 
-/* static char *mstrcpy(char *dst, char *str) { */
-/*     if (! (dst = calloc(strlen(str)+1, sizeof *str))) { */
-/*         ck_abort_msg("Failed to allocate string for test"); */
-/*         abort(); */
-/*     } */
-
-/*     strncpy(dst, str, strlen(str)); */
-/*     return dst; */
-/* } */
-
 START_TEST(test_table_generation)
 {
-	char *table = calloc(128, sizeof(table[0]));
-	ck_assert_msg(table != NULL, "Allocation should succeed");
+	char *table = NULL;
+
 	/* Ensure a table too big fails */
-	ck_assert_int_eq(faptime_random_table_string(100, table), -1);
+	ck_assert_int_eq(faptime_random_table_from_base(table, 1000), -1);
 
 	/* Ensure an appropriately sized table succeeds and is the correct length */
-	ck_assert_int_eq(faptime_random_table_string(10, table), 10);
+	ck_assert_int_eq(faptime_random_table_from_base(table, 10), 10);
 	ck_assert_int_eq(strnlen(table, 10+1), 10);
 }
 END_TEST
@@ -41,42 +32,53 @@ START_TEST(test_table_validation)
 		int expect;
 
 	};
-	#define NUM_FIXTURES 4
-	struct fixture *fixtures[NUM_FIXTURES];
 
-    struct fixture f0 = {.table="abc", .allowed="xyz", .expect=fail};
-    struct fixture f1 = {.table="aa", .allowed="xyz", .expect=fail};
-    struct fixture f2 = {.table="xxyyzz", .allowed="xyz", .expect=fail};
-    struct fixture f3 = {.table="zyx", .allowed="xyz", .expect=pass};
-    fixtures[0] = &f0;
-    fixtures[1] = &f1;
-    fixtures[2] = &f2;
-    fixtures[3] = &f3;
+	struct fixture fixtures[] = {
+		{.table="abc", .allowed="xyz", .expect=fail},
+		{.table="aa", .allowed="xyz", .expect=fail},
+		{.table="xxyyzz", .allowed="xyz", .expect=fail},
+		{.table="zyx", .allowed="xyz", .expect=pass},
+        {.table="/^", .allowed=NULL, .expect=fail},
+        {.table="abc", .allowed=NULL, .expect=pass},
+	};
 
-    /* fixtures[0]->expect = fail; */
-    /* mstrcpy(fixtures[0]->table, "abc"); */
-    /* mstrcpy(fixtures[0]->allowed, "xyz"); */
-
-	/* fixtures[1]->expect = fail; */
-	/* mstrcpy(fixtures[1]->table, "aa"); */
-    /* mstrcpy(fixtures[1]->allowed, "xyz"); */
-
-	/* fixtures[2]->expect = fail; */
-	/* mstrcpy(fixtures[2]->table, "xxyyzz"); */
-    /* mstrcpy(fixtures[2]->allowed, "xyz"); */
-
-	/* fixtures[3]->expect = pass; */
-    /* mstrcpy(fixtures[3]->table, "zyx"); */
-    /* mstrcpy(fixtures[3]->allowed, "xyz"); */
-
-	for (int i = 0; i < NUM_FIXTURES; i++) {
-		ck_assert_int_eq(fixtures[i]->expect,
-						 faptime_valid_table(fixtures[i]->table,
-											 strlen(fixtures[i]->table),
-											 fixtures[i]->allowed));
+	char *msg = NULL;
+	for (size_t i = 0; i < sizeof(fixtures); i++) {
+		asprintf(&msg, "Expected %s (%d) for table '%s' with allowed chars '%s'.\n",
+				 fixtures[i].expect ? "pass" : "fail", fixtures[i].expect,
+				 fixtures[i].table, fixtures[i].allowed);
+		ck_assert_msg(fixtures[i].expect ==
+						faptime_valid_table(fixtures[i].table,
+											fixtures[i].allowed),
+					  msg);
+		free(msg);
 	}
 
 
+}
+END_TEST
+
+START_TEST(test_table_chartoi) {
+    faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
+
+#define TOSTR(x) ('x')
+    for (int i=0; i < 10; i++) {
+        ck_assert_int_eq(i, faptime_table_chartoi(ft, TOSTR(i)));
+    }
+} END_TEST
+
+START_TEST(test_table_antoi) {
+    /* A table that maps to ordinal numbers should return the same int value */
+    faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
+
+    char *str = NULL;
+    str = strdup("1234");
+    ck_assert_int_eq(1234, faptime_table_antoi(ft, str, strlen(str)));;
+    free(str);
+
+    str = strdup("0");
+    ck_assert_int_eq(0, faptime_table_antoi(ft, str, strlen(str)));
+    free(str);
 }
 END_TEST
 
@@ -96,10 +98,14 @@ Suite * table_suite(void)
 
 	/* Table validation test case */
 	tc_table_validation = tcase_create("Table Validation");
-
 	tcase_add_test(tc_table_validation, test_table_validation);
-	suite_add_tcase(s, tc_table_validation);
+    suite_add_tcase(s, tc_table_validation);
 
+    TCase *tc_table_conversion;
+    tc_table_conversion = tcase_create("Table Numerical Conversion");
+    tcase_add_test(tc_table_conversion, test_table_chartoi);
+    tcase_add_test(tc_table_conversion, test_table_antoi);
+    suite_add_tcase(s, tc_table_conversion);
 	return s;
 }
 

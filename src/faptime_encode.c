@@ -100,12 +100,10 @@ long long faptime_decode(char *hash)
 	}
 
 	long long num = 0;
-	long long n;
 	int len = strlen(hash);
-	int c;
 	for (int i = 1; i <= len; i += 1) {
-		c = (int) hash[len - i];
-		n = lookup_table[c] * powl(62, i-1);
+		int c = (int) hash[len - i];
+		long long n = lookup_table[c] * powl(62, i-1);
 		debug_log("For '%c', => %d", c, n);
 		num += n;
 	}
