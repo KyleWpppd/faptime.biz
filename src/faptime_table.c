@@ -38,7 +38,10 @@ static struct faptime_table * faptime_alloc_table() {
 	faptime_table_t *ft = calloc(1, sizeof(*ft));
 	ft->len = 0;
 	ft->table = NULL;
-	memset(ft->lookup, FAPTIME_LOOKUP_INVALID, sizeof(ft->lookup));
+    for (int i = 0; i < FAPTIME_LOOKUP_TABLE_SIZE; i++) {
+        ft->lookup[i] = '\0';
+    }
+	/* memset(ft->lookup, FAPTIME_LOOKUP_INVALID, sizeof(ft->lookup)); */
 	return ft;
 }
 
@@ -97,7 +100,7 @@ int faptime_random_table_from_whitelist(char *dst, char *whitelist) {
 }
 
 
-int faptime_random_table_from_base(char *dst, size_t base) {
+int faptime_random_table_from_base(char **dst, size_t base) {
 	/* It's not possible for a table to have more characters than the RFC-3986
 	   legal characters, because then it would have repeats or illegals. */
 	size_t max = strlen(FAPTIME_ALL_URL_CHARS);
@@ -110,10 +113,14 @@ int faptime_random_table_from_base(char *dst, size_t base) {
 	}
 
 	strncpy(whitelist, FAPTIME_ALL_URL_CHARS, base);
-	dst = shuffle_table(whitelist);
+	*dst = shuffle_table(whitelist);
 	assert(dst != NULL);
 	free(whitelist);
-	return dst ? strlen(dst) : -1;
+    if (dst) {
+        return strlen(*dst);
+    }
+
+	return -1;
 }
 
 void faptime_free_table(struct faptime_table *ft) {
@@ -231,7 +238,8 @@ int faptime_valid_table(char *table, char* allowed) {
 	#define INVALID 0
 	int table_status = VALID;
 	size_t illegal_idx = strspn(table, tmpallowed);
-	if (table_len >= illegal_idx && table_len <= strlen(tmpallowed)) {
+
+	if (table_len == illegal_idx && table_len <= strlen(tmpallowed)) {
         unsigned char seen[128] = { 0 };
 		for (size_t i = 0; i < table_len; i++) {
             unsigned char c;
@@ -260,12 +268,15 @@ static void faptime_init_lookup_table(struct faptime_table *ft) {
 	}
 }
 
-int faptime_table_chartoi(const faptime_table_t *ft, const char c) {
-    if (c > 127 || c < 0) {
+int faptime_table_chartoi(const faptime_table_t *ft, const unsigned char c) {
+    if (ft == NULL) {
+        return -1;
+    }
+    if (c > (FAPTIME_LOOKUP_TABLE_SIZE - 1)) {
         return FAPTIME_LOOKUP_INVALID;
     }
 
-    int val = ft->lookup[(int8_t)c];
+    int val = ft->lookup[c];
     return val;
 }
 

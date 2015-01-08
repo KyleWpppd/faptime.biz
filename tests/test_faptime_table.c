@@ -12,13 +12,20 @@
 START_TEST(test_table_generation)
 {
 	char *table = NULL;
+	/* Ensure an appropriately sized base succeeds and is the correct length */
+    int tablelen = faptime_random_table_from_base(&table, 10);
+    ck_assert_int_eq(tablelen, 10);
+    ck_assert_msg(table != NULL, "Table should not be NULL");
+    ck_assert_int_eq(strnlen(table, 10+1), 10);
+	free(table);
+	table = NULL;
 
-	/* Ensure a table too big fails */
-	ck_assert_int_eq(faptime_random_table_from_base(table, 1000), -1);
+	/* Ensure a base too big fails */
+	ck_assert_int_eq(faptime_random_table_from_base(&table, 1000), -1);
+	free(table);
+	table = NULL;
 
-	/* Ensure an appropriately sized table succeeds and is the correct length */
-	ck_assert_int_eq(faptime_random_table_from_base(table, 10), 10);
-	ck_assert_int_eq(strnlen(table, 10+1), 10);
+
 }
 END_TEST
 
@@ -38,8 +45,8 @@ START_TEST(test_table_validation)
 		{.table="aa", .allowed="xyz", .expect=fail},
 		{.table="xxyyzz", .allowed="xyz", .expect=fail},
 		{.table="zyx", .allowed="xyz", .expect=pass},
-        {.table="/^", .allowed=NULL, .expect=fail},
-        {.table="abc", .allowed=NULL, .expect=pass},
+		{.table="/^", .allowed=NULL, .expect=fail},
+		{.table="abc", .allowed=NULL, .expect=pass},
 	};
 
 	char *msg = NULL;
@@ -58,27 +65,28 @@ START_TEST(test_table_validation)
 }
 END_TEST
 
-START_TEST(test_table_chartoi) {
-    faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
-
 #define TOSTR(x) ('x')
-    for (int i=0; i < 10; i++) {
-        ck_assert_int_eq(i, faptime_table_chartoi(ft, TOSTR(i)));
-    }
+START_TEST(test_table_chartoi) {
+	faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
+    ck_assert_msg(ft != NULL, "Table generation should succeed for a valid string");
+
+	for (int i=0; i < 10; i++) {
+		ck_assert_int_eq(i, faptime_table_chartoi(ft, TOSTR(i)));
+	}
 } END_TEST
 
 START_TEST(test_table_antoi) {
-    /* A table that maps to ordinal numbers should return the same int value */
-    faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
+	/* A table that maps to ordinal numbers should return the same int value */
+	faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
 
-    char *str = NULL;
-    str = strdup("1234");
-    ck_assert_int_eq(1234, faptime_table_antoi(ft, str, strlen(str)));;
-    free(str);
+	char *str = NULL;
+	str = strdup("1234");
+	ck_assert_int_eq(1234, faptime_table_antoi(ft, str, strlen(str)));;
+	free(str);
 
-    str = strdup("0");
-    ck_assert_int_eq(0, faptime_table_antoi(ft, str, strlen(str)));
-    free(str);
+	str = strdup("0");
+	ck_assert_int_eq(0, faptime_table_antoi(ft, str, strlen(str)));
+	free(str);
 }
 END_TEST
 
@@ -99,13 +107,13 @@ Suite * table_suite(void)
 	/* Table validation test case */
 	tc_table_validation = tcase_create("Table Validation");
 	tcase_add_test(tc_table_validation, test_table_validation);
-    suite_add_tcase(s, tc_table_validation);
+	suite_add_tcase(s, tc_table_validation);
 
-    TCase *tc_table_conversion;
-    tc_table_conversion = tcase_create("Table Numerical Conversion");
-    tcase_add_test(tc_table_conversion, test_table_chartoi);
-    tcase_add_test(tc_table_conversion, test_table_antoi);
-    suite_add_tcase(s, tc_table_conversion);
+	TCase *tc_table_conversion;
+	tc_table_conversion = tcase_create("Table Numerical Conversion");
+	tcase_add_test(tc_table_conversion, test_table_chartoi);
+	tcase_add_test(tc_table_conversion, test_table_antoi);
+	suite_add_tcase(s, tc_table_conversion);
 	return s;
 }
 
@@ -117,7 +125,7 @@ int main(void)
 
 	 s = table_suite();
 	 sr = srunner_create(s);
-
+     srunner_set_fork_status(sr, CK_NOFORK);
 	 srunner_run_all(sr, CK_NORMAL);
 	 number_failed = srunner_ntests_failed(sr);
 	 srunner_free(sr);

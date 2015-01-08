@@ -46,7 +46,9 @@ clean:
 fcgx: $(NOTMAIN_OBJS) $(FCGX_MAIN)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ_FILES) $(FCGX_MAIN)
 
-test: faptime $(TEST_BINS)
+tests: $(TEST_BINS)
+
+test: $(TEST_BINS)
 	./$<
 
 cppcheck:
