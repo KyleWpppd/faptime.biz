@@ -45,6 +45,14 @@
 #define FT_URL_GROUP_DEFAULT "default"
 #define FAPTIME_DEFAULT_URL_CHARS FAPTIME_ALPHANUM_URL_CHARS
 
+#include "sys/types.h"
+
+struct faptime_url {
+	char *url;
+	char *hash;
+	size_t hashlen;
+	size_t urllen;
+};
 
 int faptime_url_is_named_group(char *group);
 char *faptime_url_getgroup(const char *groupkey, char *defaultgrp);

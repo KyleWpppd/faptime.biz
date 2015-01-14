@@ -9,7 +9,7 @@
 #define ONERROR_RETURN_NULL 0
 #define ONERROR_ABORT 1
 #define ONERROR_FAIL_TEST 2
-#define DONE() do { fprintf(stderr, "DONE\n"); } while(0)
+#define DONE() do { fprintf(stderr, "DONE\n\n"); } while(0)
 
 START_TEST(test_table_generation)
 {
@@ -67,7 +67,7 @@ START_TEST(test_table_validation)
 		fprintf(stderr, "%s\n", pass ? "OK" : "ERROR");
 		ck_assert(pass);
 	}
-	fprintf(stderr, "DONE\n");
+	DONE();
 }
 END_TEST
 
@@ -101,32 +101,38 @@ START_TEST(test_table_antoi) {
 	fprintf(stderr, "Testing conversion from character string to integer\n");
 	/* A table that maps to ordinal numbers should return the same int value */
 	faptime_table_t *ft = faptime_table_from_string("0123456789", NULL);
+	faptime_table_t *ft_hex = faptime_table_from_string("0123456789ABCDEF", NULL);
 
 	struct fixture {
 		char *str;
+		faptime_table_t *table;
 		int expect;
 	};
 
 	struct fixture fixtures[] = {
-		{.str=NULL,         .expect=-1},
-		{.str="",           .expect=0},
-		{.str="0",          .expect=0},
-		{.str="1",          .expect=1},
-		{.str="10",         .expect=10},
-		{.str="1234",       .expect=1234},
-		{.str="badstring",  .expect=-1},
+		{.str=NULL,         .expect=-1, .table=ft},
+		{.str="",           .expect=0, .table=ft},
+		{.str="0",          .expect=0, .table=ft},
+		{.str="1",          .expect=1, .table=ft},
+		{.str="10",         .expect=10, .table=ft},
+		{.str="1234",       .expect=1234, .table=ft},
+		{.str="badstring",  .expect=-1, .table=ft},
+		{.str="badstring",  .expect=-1, .table=ft_hex},
+		{.str="F",          .expect=15, .table=ft_hex},
+		{.str="FF",         .expect=255, .table=ft_hex},
 	};
 
 	int fixture_len = sizeof(fixtures) / sizeof(fixtures[0]);
 	for (int i = 0; i < fixture_len; i++) {
-		int val = faptime_table_antoi(ft, fixtures[i].str);
+		int val = faptime_table_antoi(fixtures[i].table, fixtures[i].str);
 		int pass = val == fixtures[i].expect;
 		fprintf(stderr, "Testing that given table '%s', the string '%s' evaluates to %d: %s (%d)\n",
-				ft->table, fixtures[i].str, fixtures[i].expect, pass ? "OK" : "ERROR", val);
+				fixtures[i].table->table, fixtures[i].str, fixtures[i].expect, pass ? "OK" : "ERROR", val);
 		ck_assert_int_eq(val, fixtures[i].expect);
 	}
 	faptime_free_table(ft);
-	fprintf(stderr, "DONE\n");
+	faptime_free_table(ft_hex);
+	DONE();
 }
 END_TEST
 

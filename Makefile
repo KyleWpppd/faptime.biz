@@ -10,8 +10,9 @@
 
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis
-CFLAGS=-g -Wall -pedantic -Werror -std=c99 -fno-omit-frame-pointer -fstack-protector
-LDFLAGS=-lhiredis -lfcgi -lcurl -lcheck -liniparser -v
+CFLAGS=-g -O2 -W -Wall -Wunused -Wformat -Wformat-security -fPIE -pie -pedantic -Werror -std=c99 -fno-omit-frame-pointer -fstack-protector -Wno-error=unused-command-line-argument
+LDLIBS=-lhiredis -lfcgi -lcurl -lcheck -liniparser -v
+LDFLAGS=$(LDLIBS) -Wl,-pie
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 
 C_FILES := $(wildcard src/*.c)
@@ -35,7 +36,7 @@ FAPTIME_MAIN="faptime_main.o"
 .PHONY: all clean test test-bin-folder cppcheck check
 
 faptime: $(FAP_OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(FAP_OBJS)
+	$(CC) $(CFLAGS) $(RELEASE_FLAGS) $(LDFLAGS) -o $@ $(FAP_OBJS)
 
 all: faptime fcgx
 

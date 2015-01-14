@@ -36,10 +36,9 @@ static const char table[TABLE_SIZE+1] = {
 
 int lookup_table[128] = {0};
 void faptime_create_lookup_table() {
-	int i = 0;
-	char cc;
-	for (i = 0; i < strlen(table); i++) {
-		cc = table[i];
+	size_t len = strlen(table);
+	for (size_t i = 0; i < len; i++) {
+		char cc = table[i];
 		assert(isalnum(cc));
 		lookup_table[((int) cc)] = i;
 	}
@@ -75,11 +74,9 @@ char *faptime_encode(char *dest, long long num)
 {
 	strcpy(dest, "");
 	char *tmp = dest;
-	int remainder;
-	char c;
-	/* debug_log(stderr, "Now encoding: %lld\n", num); */
 	while (num != 0) {
-		remainder = num % TABLE_SIZE;
+		char c = '\0';
+		int remainder = num % TABLE_SIZE;
 		num = num / TABLE_SIZE;
 		*dest++ = c = table[remainder];
 		debug_log("Chr: '%c'\tNum: %lld,\tRem: %d\n", c, num,

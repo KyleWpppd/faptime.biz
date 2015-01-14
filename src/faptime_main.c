@@ -12,7 +12,7 @@
 #include "faptime_urls.h"
 #include "faptime_table.h"
 #include "faptime_config.h"
-
+#include "faptime_server.h"
 
 /* This flag set by the '--verbose' option */
 static int verbose_flag;
@@ -44,6 +44,7 @@ static char* default_config_file_path(char *argv0) {
 int main(int argc, char *argv[]) {
 	int dump = 0;
 	int generate_table = 0;
+	int serve = 0;
 	char *table_str = NULL;
 	char *config_file_path = default_config_file_path(argv[0]);
 	char *allowed_chars = NULL;
@@ -51,18 +52,19 @@ int main(int argc, char *argv[]) {
         int c;
 		static struct option long_options[]= {
 			{"verbose", no_argument, &verbose_flag, 1},
-			{"dump-table", no_argument, 0, '0'},
+			{"dump-table", no_argument, 0, 'O'},
 			{"dump-config", no_argument, 0, 'd'},
 			{"generate-new-table", no_argument, 0, 'g'},
 			{"allowed-characters", required_argument, 0, 'A'},
 			{"config-file", required_argument, 0, 'c'},
-			{"table", required_argument, 0, 't'},
+			{"serve", required_argument, 0, 'S'},
+			{"table", no_argument, 0, 't'},
 			{0, 0, 0, 0}
 		};
 
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "dcn::", long_options, &option_index);
+		c = getopt_long(argc, argv, "Ac:dgn::OS:t", long_options, &option_index);
 
 		if (-1 == c) {
 			break;
@@ -74,16 +76,20 @@ int main(int argc, char *argv[]) {
 		case 'A':
 			allowed_chars = optarg;
 			break;
-		case 'O':
-			dump = DUMP_TABLE;
-			break;
 		case 'c':
 			config_file_path = optarg;
 			break;
 		case 'd':
 			dump = DUMP_CONFIG;
+			break;
 		case 'g':
 			generate_table = 1;
+			break;
+		case 'O':
+			dump = DUMP_TABLE;
+			break;
+		case 'S':
+			serve = 1;
 			break;
 		case't':
 			table_str = optarg;
@@ -168,6 +174,26 @@ int main(int argc, char *argv[]) {
 		faptime_print_table(ft);
 		exit(0);
 	}
+
+	if (serve) {
+		faptime_server_serve();
+	} else {
+		/* Collect the remaining string off of stdin to a maxlen of the longest possible encoded string */
+		if (argc > 1 && argv[argc-1] && strnlen(argv[argc-1], 21) <= 20) {
+			char *tmp = strdup(argv[argc-1]);
+			int val = faptime_table_antoi(ft, tmp);
+			if (val < 0) {
+				fprintf(stderr, "Invalid string: %s\n", tmp);
+				free(tmp);
+				exit(1);
+			}
+			free(tmp);
+			fprintf(stdout, "%d\n", val);
+			exit(0);
+		}
+
+	}
+
 	faptime_config_free();
 	return 99;
 }

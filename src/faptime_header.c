@@ -127,7 +127,7 @@ int faptime_header_cat(char *header) {
 		exit(1);
 	}
 
-	int remain = H_BUF_LEN - strlen(h_buf);
+	size_t remain = H_BUF_LEN - strlen(h_buf);
 	if (strlen(header)+strlen("\r\n")+1 > remain) {
 		error_log("Header buffer exhausted.\n");
 		return -1;
