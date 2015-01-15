@@ -10,7 +10,7 @@
 
 # Fallback to gcc when $CC is not in $PATH.
 # Credit to Hiredis github.com/redis/hiredis
-CFLAGS=-g -O2 -W -Wall -Wunused -Wformat -Wformat-security -fPIE -pie -pedantic -Werror -std=c99 -fno-omit-frame-pointer -fstack-protector -Wno-error=unused-command-line-argument
+CFLAGS=-g -O2 -W -Wall -Wunused -Wformat -Wformat-security -fPIE -pie -pedantic -Werror -std=c11 -fno-omit-frame-pointer -fstack-protector -Wno-error=unused-command-line-argument
 LDLIBS=-lhiredis -lfcgi -lcurl -lcheck -liniparser -v
 LDFLAGS=$(LDLIBS) -Wl,-pie
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
